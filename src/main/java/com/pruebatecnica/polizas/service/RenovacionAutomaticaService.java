@@ -10,18 +10,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
-import com.pruebatecnica.polizas.dto.PolizaResponse;
-import com.pruebatecnica.polizas.dto.RenovacionAutomaticaResponse;
+import com.pruebatecnica.polizas.dto.EndosoResultado;
+import com.pruebatecnica.polizas.dto.ProcesoRequest;
+import com.pruebatecnica.polizas.dto.RenovacionAutomaticaResultado;
 import com.pruebatecnica.polizas.exception.EstadoInvalidoException;
 import com.pruebatecnica.polizas.exception.ReglaNegocioException;
 import com.pruebatecnica.polizas.repository.PolizaRepository;
 
 /**
- * Renovación automática: renueva las pólizas no canceladas cuya vigencia ya terminó. La llama una vez al día un
- * programador de tareas externo, para que con varias copias de la API corra una sola vez. Cada póliza se renueva en
- * su propia transacción: si una no se puede renovar (por ejemplo, porque aún no hay IPC), las demás siguen y esa se
- * intenta de nuevo en la corrida siguiente. Repetir la corrida no duplica nada: una póliza renovada ya no está
- * vencida.
+ * Renovación automática: renueva las pólizas no canceladas cuya vigencia terminó a más tardar en la fecha de corte
+ * (la fecha del movimiento, o hoy). La llama una vez al día un programador de tareas externo, para que con varias
+ * copias de la API corra una sola vez. Cada póliza se renueva en su propia transacción: si una no se puede renovar
+ * (por ejemplo, porque aún no hay IPC), las demás siguen y esa se intenta de nuevo en la corrida siguiente. Repetir la
+ * corrida no duplica nada: una póliza renovada ya no está vencida.
  */
 @Service
 public class RenovacionAutomaticaService {
@@ -38,21 +39,21 @@ public class RenovacionAutomaticaService {
 		this.reloj = reloj;
 	}
 
-	public RenovacionAutomaticaResponse renovarLasQueVencieron() {
-		LocalDate hoy = LocalDate.now(reloj);
-		List<Long> porRenovar = polizas.buscarPorRenovar(hoy);
-		List<PolizaResponse> renovadas = new ArrayList<>();
-		List<RenovacionAutomaticaResponse.Omitida> omitidas = new ArrayList<>();
+	public RenovacionAutomaticaResultado renovarLasQueVencieron(ProcesoRequest proceso) {
+		LocalDate corte = proceso.fechaMovimientoO(LocalDate.now(reloj));
+		List<Long> porRenovar = polizas.buscarPorRenovar(corte);
+		List<EndosoResultado> renovadas = new ArrayList<>();
+		List<RenovacionAutomaticaResultado.Omitida> omitidas = new ArrayList<>();
 		for (long polizaId : porRenovar) {
 			try {
-				renovadas.add(servicio.renovar(polizaId).sinRiesgos());
+				renovadas.add(servicio.renovar(polizaId, proceso, "Renovacion automatica con corte " + corte));
 			} catch (ReglaNegocioException | EstadoInvalidoException | DataIntegrityViolationException e) {
 				log.warn("Renovacion automatica: la poliza {} no se renovo: {}", polizaId, e.getMessage());
-				omitidas.add(new RenovacionAutomaticaResponse.Omitida(polizaId, e.getMessage()));
+				omitidas.add(new RenovacionAutomaticaResultado.Omitida(polizaId, e.getMessage()));
 			}
 		}
-		log.info("Renovacion automatica del {}: {} vencidas, {} renovadas, {} omitidas", hoy, porRenovar.size(),
+		log.info("Renovacion automatica del {}: {} vencidas, {} renovadas, {} omitidas", corte, porRenovar.size(),
 				renovadas.size(), omitidas.size());
-		return new RenovacionAutomaticaResponse(hoy, porRenovar.size(), renovadas, omitidas);
+		return new RenovacionAutomaticaResultado(corte, porRenovar.size(), renovadas, omitidas);
 	}
 }

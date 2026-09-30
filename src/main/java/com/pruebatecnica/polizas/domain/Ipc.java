@@ -19,10 +19,6 @@ public class Ipc {
 	protected Ipc() {
 	}
 
-	public Integer getAnio() {
-		return anio;
-	}
-
 	public BigDecimal getPorcentaje() {
 		return porcentaje;
 	}

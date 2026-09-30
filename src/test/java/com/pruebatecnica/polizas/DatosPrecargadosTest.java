@@ -24,6 +24,9 @@ class DatosPrecargadosTest {
 	@Test
 	void cargaPolizasRiesgosEIpc() {
 		assertThat(contar("ipc")).isEqualTo(4);
+		assertThat(contar("persona")).isEqualTo(24);
+		assertThat(contar("aviso")).as("un aviso al CORE por endoso y uno de notificacion por emision y renovacion")
+				.isEqualTo(19);
 		assertThat(contar("poliza")).as("filas de póliza, una por endoso").isEqualTo(11);
 		assertThat(contar("riesgo")).as("filas de riesgo, solo las que cambian en cada endoso").isEqualTo(14);
 		assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT poliza_id) FROM poliza", Integer.class)).isEqualTo(7);
@@ -46,12 +49,12 @@ class DatosPrecargadosTest {
 	@Test
 	void elCanonDeCadaPolizaEsLaSumaDeLosCanonesDeSusRiesgosActivos() {
 		var descuadres = jdbc.queryForList("""
-				SELECT p.poliza_id, p.canon, COALESCE(SUM(r.canon), 0) AS suma_riesgos
+				SELECT p.poliza_id, p.canon, COALESCE(SUM(r.canon_mensual), 0) AS suma_riesgos
 				FROM poliza p
 				LEFT JOIN riesgo r ON r.poliza_id = p.poliza_id AND r.vigente = 'S' AND r.estado = 'ACTIVO'
 				WHERE %s
 				GROUP BY p.poliza_id, p.canon
-				HAVING p.canon <> COALESCE(SUM(r.canon), 0)
+				HAVING p.canon <> COALESCE(SUM(r.canon_mensual), 0)
 				""".formatted(ULTIMO_ENDOSO));
 		assertThat(descuadres).isEmpty();
 	}

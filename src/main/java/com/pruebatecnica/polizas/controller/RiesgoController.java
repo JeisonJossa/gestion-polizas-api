@@ -10,9 +10,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.pruebatecnica.polizas.dto.MovimientoRiesgoResponse;
-import com.pruebatecnica.polizas.dto.RiesgoRequest;
-import com.pruebatecnica.polizas.dto.RiesgoResponse;
+import com.pruebatecnica.polizas.dto.CancelacionRequest;
+import com.pruebatecnica.polizas.dto.EndosoResultado;
+import com.pruebatecnica.polizas.dto.InclusionRiesgoRequest;
+import com.pruebatecnica.polizas.dto.RespuestaApi;
+import com.pruebatecnica.polizas.dto.RiesgoConsulta;
+import com.pruebatecnica.polizas.dto.TipoProceso;
 import com.pruebatecnica.polizas.service.RiesgoService;
 
 import jakarta.validation.Valid;
@@ -21,27 +24,39 @@ import jakarta.validation.Valid;
 public class RiesgoController {
 
 	private final RiesgoService servicio;
+	private final Respuestas respuestas;
 
-	public RiesgoController(RiesgoService servicio) {
+	public RiesgoController(RiesgoService servicio, Respuestas respuestas) {
 		this.servicio = servicio;
+		this.respuestas = respuestas;
 	}
 
-	/** Riesgos de la póliza, activos y cancelados, en su estado actual. */
+	/** CONSULTA_RIESGOS: los riesgos de la póliza, activos y cancelados, en su estado actual. */
 	@GetMapping("/polizas/{id}/riesgos")
-	public List<RiesgoResponse> listar(@PathVariable long id) {
-		return servicio.listar(id);
+	public RespuestaApi<List<RiesgoConsulta>> listar(@PathVariable long id) {
+		List<RiesgoConsulta> riesgos = servicio.listar(id);
+		return respuestas.exito(TipoProceso.CONSULTA_RIESGOS, riesgos.size() + " riesgos de la póliza " + id + ".",
+				riesgos);
 	}
 
-	/** Agrega un riesgo; solo aplica a pólizas colectivas. */
+	/** INCLUSION_RIESGO: agrega un riesgo; solo aplica a pólizas colectivas. */
 	@PostMapping("/polizas/{id}/riesgos")
 	@ResponseStatus(HttpStatus.CREATED)
-	public MovimientoRiesgoResponse agregar(@PathVariable long id, @Valid @RequestBody RiesgoRequest solicitud) {
-		return servicio.agregar(id, solicitud);
+	public RespuestaApi<EndosoResultado> agregar(@PathVariable long id,
+			@Valid @RequestBody InclusionRiesgoRequest solicitud) {
+		solicitud.proceso().exigirTipo(TipoProceso.INCLUSION_RIESGO);
+		EndosoResultado inclusion = servicio.agregar(id, solicitud);
+		return respuestas.exito(TipoProceso.INCLUSION_RIESGO, "Riesgo " + inclusion.riesgos().get(0).codigo()
+				+ " incluido en la póliza " + id + ".", inclusion);
 	}
 
-	/** Cancela un riesgo de una póliza colectiva. */
+	/** EXCLUSION_RIESGO: cancela un riesgo de una póliza colectiva. */
 	@PostMapping("/riesgos/{id}/cancelar")
-	public MovimientoRiesgoResponse cancelar(@PathVariable long id) {
-		return servicio.cancelar(id);
+	public RespuestaApi<EndosoResultado> cancelar(@PathVariable long id,
+			@Valid @RequestBody CancelacionRequest solicitud) {
+		solicitud.proceso().exigirTipo(TipoProceso.EXCLUSION_RIESGO);
+		EndosoResultado exclusion = servicio.cancelar(id, solicitud);
+		return respuestas.exito(TipoProceso.EXCLUSION_RIESGO, "Riesgo " + id + " excluido de la póliza "
+				+ exclusion.polizaId() + ".", exclusion);
 	}
 }

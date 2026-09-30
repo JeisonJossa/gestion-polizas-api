@@ -63,11 +63,8 @@ public final class PolizaVigente {
 			throw new ReglaNegocioException("Solo se pueden agregar riesgos a pólizas colectivas; la póliza "
 					+ poliza.getPolizaId() + " es individual.");
 		}
+		exigirDentroDeVigencia(fecha, "renuévela antes de agregar riesgos");
 		int meses = mesesRestantes(fecha);
-		if (meses == 0) {
-			throw new ReglaNegocioException("La vigencia de la póliza " + poliza.getPolizaId()
-					+ " terminó el " + poliza.getFinVigencia() + "; renuévela antes de agregar riesgos.");
-		}
 		int codRiesgo = riesgos.stream().mapToInt(Riesgo::getCodRiesgo).max().orElse(0) + 1;
 		Riesgo nuevo = Riesgo.incluir(idRiesgo.getAsLong(), poliza.getPolizaId(), siguienteEndoso(), codRiesgo,
 				datos, meses, fecha);
@@ -89,6 +86,7 @@ public final class PolizaVigente {
 		if (!actual.estaActivo()) {
 			throw new EstadoInvalidoException("El riesgo " + riesgoId + " ya está cancelado.");
 		}
+		exigirDentroDeVigencia(fecha, "no quedan meses por devolver");
 		Riesgo cancelado = actual.cancelarEn(siguienteEndoso(), fecha, mesesRestantes(fecha));
 		return registrar(TipoEndoso.EXCLUSION, fecha, poliza.getEstado(), poliza.getInicioVigencia(),
 				poliza.getFinVigencia(), List.of(cancelado), List.of(actual), false);
@@ -124,6 +122,7 @@ public final class PolizaVigente {
 		if (poliza.estaCancelada()) {
 			throw new EstadoInvalidoException("La póliza " + poliza.getPolizaId() + " ya está cancelada.");
 		}
+		exigirDentroDeVigencia(fecha, "no quedan meses por devolver");
 		int meses = mesesRestantes(fecha);
 		int endoso = siguienteEndoso();
 		List<Riesgo> activos = riesgos.stream().filter(Riesgo::estaActivo).toList();
@@ -159,6 +158,18 @@ public final class PolizaVigente {
 		if (poliza.estaCancelada()) {
 			throw new EstadoInvalidoException("La póliza " + poliza.getPolizaId() + " está cancelada; no se puede "
 					+ accion + ".");
+		}
+	}
+
+	/** La fecha del movimiento tiene que caer dentro de la vigencia actual de la póliza. */
+	private void exigirDentroDeVigencia(LocalDate fecha, String siTermino) {
+		if (fecha.isBefore(poliza.getInicioVigencia())) {
+			throw new ReglaNegocioException("La fecha del movimiento (" + fecha + ") es anterior al inicio de la "
+					+ "vigencia de la póliza " + poliza.getPolizaId() + " (" + poliza.getInicioVigencia() + ").");
+		}
+		if (fecha.isAfter(poliza.getFinVigencia())) {
+			throw new ReglaNegocioException("La vigencia de la póliza " + poliza.getPolizaId() + " terminó el "
+					+ poliza.getFinVigencia() + "; " + siTermino + ".");
 		}
 	}
 

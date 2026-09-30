@@ -14,6 +14,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
@@ -45,22 +47,17 @@ public class Riesgo implements Persistable<RiesgoId> {
 	@AttributeOverride(name = "ciudad", column = @Column(name = "inmueble_ciudad"))
 	private Inmueble inmueble;
 
-	@Embedded
-	@AttributeOverride(name = "tipoDocumento", column = @Column(name = "arrendatario_tipo_documento"))
-	@AttributeOverride(name = "numeroDocumento", column = @Column(name = "arrendatario_numero_documento"))
-	@AttributeOverride(name = "nombre", column = @Column(name = "arrendatario_nombre"))
-	@AttributeOverride(name = "correo", column = @Column(name = "arrendatario_correo"))
-	@AttributeOverride(name = "celular", column = @Column(name = "arrendatario_celular"))
+	/** El asegurado. */
+	@ManyToOne(optional = false)
+	@JoinColumn(name = "arrendatario_id")
 	private Persona arrendatario;
 
-	@Embedded
-	@AttributeOverride(name = "tipoDocumento", column = @Column(name = "arrendador_tipo_documento"))
-	@AttributeOverride(name = "numeroDocumento", column = @Column(name = "arrendador_numero_documento"))
-	@AttributeOverride(name = "nombre", column = @Column(name = "arrendador_nombre"))
-	@AttributeOverride(name = "correo", column = @Column(name = "arrendador_correo"))
-	@AttributeOverride(name = "celular", column = @Column(name = "arrendador_celular"))
+	/** El beneficiario. */
+	@ManyToOne(optional = false)
+	@JoinColumn(name = "arrendador_id")
 	private Persona arrendador;
 
+	@Column(name = "canon_mensual")
 	private BigDecimal canon;
 
 	/** Lo que paga el riesgo en la vigencia actual: su canon por los meses que cubre. */

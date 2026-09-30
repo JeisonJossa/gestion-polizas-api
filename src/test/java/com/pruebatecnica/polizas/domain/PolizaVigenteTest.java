@@ -155,6 +155,18 @@ class PolizaVigenteTest {
 	}
 
 	@Test
+	void laFechaDelMovimientoTieneQueEstarDentroDeLaVigencia() {
+		PolizaVigente poliza = vigente(emitirColectiva(1_000_000));
+
+		assertThatThrownBy(() -> poliza.cancelar(LocalDate.of(2025, 12, 31)))
+				.isInstanceOf(ReglaNegocioException.class)
+				.hasMessageContaining("anterior al inicio de la vigencia");
+		assertThatThrownBy(() -> poliza.cancelar(LocalDate.of(2027, 1, 1)))
+				.isInstanceOf(ReglaNegocioException.class)
+				.hasMessageContaining("no quedan meses por devolver");
+	}
+
+	@Test
 	void laRenovacionUsaElIpcDelAnioAnteriorAlInicioDeLaNuevaVigencia() {
 		assertThat(vigente(emitirColectiva(1_000_000)).anioIpcParaRenovar()).isEqualTo(2026);
 	}

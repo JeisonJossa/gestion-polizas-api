@@ -9,10 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.pruebatecnica.polizas.domain.Endoso;
 import com.pruebatecnica.polizas.domain.Riesgo;
-import com.pruebatecnica.polizas.dto.MovimientoRiesgoResponse;
-import com.pruebatecnica.polizas.dto.PolizaResponse;
-import com.pruebatecnica.polizas.dto.RiesgoRequest;
-import com.pruebatecnica.polizas.dto.RiesgoResponse;
+import com.pruebatecnica.polizas.dto.CancelacionRequest;
+import com.pruebatecnica.polizas.dto.EndosoResultado;
+import com.pruebatecnica.polizas.dto.InclusionRiesgoRequest;
+import com.pruebatecnica.polizas.dto.RiesgoConsulta;
 import com.pruebatecnica.polizas.exception.RecursoNoEncontradoException;
 import com.pruebatecnica.polizas.repository.RiesgoRepository;
 
@@ -21,38 +21,35 @@ public class RiesgoService {
 
 	private final RiesgoRepository riesgos;
 	private final RegistroEndosos registro;
+	private final RegistroPersonas personas;
 	private final Clock reloj;
 
-	public RiesgoService(RiesgoRepository riesgos, RegistroEndosos registro, Clock reloj) {
+	public RiesgoService(RiesgoRepository riesgos, RegistroEndosos registro, RegistroPersonas personas, Clock reloj) {
 		this.riesgos = riesgos;
 		this.registro = registro;
+		this.personas = personas;
 		this.reloj = reloj;
 	}
 
 	@Transactional(readOnly = true)
-	public List<RiesgoResponse> listar(long polizaId) {
-		return registro.cargar(polizaId).riesgos().stream().map(RiesgoResponse::de).toList();
+	public List<RiesgoConsulta> listar(long polizaId) {
+		return registro.cargar(polizaId).riesgos().stream().map(RiesgoConsulta::de).toList();
 	}
 
 	@Transactional
-	public MovimientoRiesgoResponse agregar(long polizaId, RiesgoRequest solicitud) {
-		Endoso inclusion = registro.guardar(registro.cargar(polizaId)
-				.agregarRiesgo(solicitud.aDominio(), LocalDate.now(reloj), riesgos::siguienteId));
-		return respuesta(inclusion);
+	public EndosoResultado agregar(long polizaId, InclusionRiesgoRequest solicitud) {
+		LocalDate fecha = solicitud.proceso().fechaMovimientoO(LocalDate.now(reloj));
+		Endoso inclusion = registro.cargar(polizaId)
+				.agregarRiesgo(personas.datosRiesgo(solicitud.riesgo()), fecha, riesgos::siguienteId);
+		return EndosoResultado.de(registro.guardar(inclusion, solicitud.proceso(), null));
 	}
 
 	@Transactional
-	public MovimientoRiesgoResponse cancelar(long riesgoId) {
+	public EndosoResultado cancelar(long riesgoId, CancelacionRequest solicitud) {
 		Riesgo riesgo = riesgos.findFirstByRiesgoIdAndVigente(riesgoId, true)
 				.orElseThrow(() -> new RecursoNoEncontradoException("No existe el riesgo " + riesgoId + "."));
-		Endoso exclusion = registro.guardar(registro.cargar(riesgo.getPolizaId())
-				.cancelarRiesgo(riesgoId, LocalDate.now(reloj)));
-		return respuesta(exclusion);
-	}
-
-	/** En la inclusión y en la exclusión se escribe exactamente un riesgo. */
-	private MovimientoRiesgoResponse respuesta(Endoso endoso) {
-		return new MovimientoRiesgoResponse(PolizaResponse.de(endoso.poliza()),
-				RiesgoResponse.de(endoso.riesgosEscritos().get(0)));
+		LocalDate fecha = solicitud.proceso().fechaMovimientoO(LocalDate.now(reloj));
+		Endoso exclusion = registro.cargar(riesgo.getPolizaId()).cancelarRiesgo(riesgoId, fecha);
+		return EndosoResultado.de(registro.guardar(exclusion, solicitud.proceso(), solicitud.motivo()));
 	}
 }

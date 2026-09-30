@@ -21,6 +21,11 @@ spring:
 server:
   port: 8080
 
+logging:
+  pattern:
+    # Cada línea del log lleva el idTransaccion de la petición (el mismo que va en la respuesta).
+    level: "%5p [%X{idTransaccion:-}]"
+
 polizas:
   # Valor del encabezado api-key que exige el API.
   api-key: "123456"
@@ -28,3 +33,6 @@ polizas:
     # Servicio agnóstico de edición. Hoy es el mock de esta misma app; en producción, la capa media WebLogic.
     url: http://localhost:${server.port}/core-mock/evento
     timeout: 2s
+  avisos:
+    # Cada cuánto el procesador de avisos reintenta los que quedaron PENDIENTES (milisegundos).
+    reintento-ms: 30000

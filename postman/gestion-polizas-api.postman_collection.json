@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Gestión de Pólizas de Arrendamiento - Módulo 2",
-    "description": "API del Módulo 2. Arranque la app (mvnw spring-boot:run) y ejecute la colección completa con el Runner, en orden: cada petición guarda los ids que usa la siguiente. El encabezado api-key sale de la autorización de la colección (variable apiKey).",
+    "description": "API del Módulo 2. Arranque la app (mvnw spring-boot:run) y envíe cualquier petición: no hay que llenar ningún dato. Las variables arrancan con datos precargados (individual 1001, colectiva 1003, riesgo 6) y las peticiones que necesitan una póliza o un riesgo en cierto estado lo revisan antes de enviarse; si ya no sirve (por ejemplo, porque se canceló), crean uno nuevo y actualizan la variable. También se puede ejecutar completa con el Runner. El encabezado api-key sale de la autorización de la colección (variable apiKey). Las peticiones que cambian una póliza envían el bloque \"proceso\" (tipoProceso, canal, usuario y fechaMovimiento opcional), y todas las respuestas traen idTransaccion, proceso, resultado (0 o -1), mensaje, errores y datos.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -35,19 +35,19 @@
     },
     {
       "key": "inicioVigencia",
-      "value": ""
+      "value": "2026-09-01"
     },
     {
       "key": "polizaIndividualId",
-      "value": ""
+      "value": "1001"
     },
     {
       "key": "polizaColectivaId",
-      "value": ""
+      "value": "1003"
     },
     {
       "key": "riesgoAgregadoId",
-      "value": ""
+      "value": "6"
     }
   ],
   "item": [
@@ -75,9 +75,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responde 200 con resultado 0 y proceso CONSULTA_POLIZAS', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('CONSULTA_POLIZAS');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
                   "pm.test('Trae las pólizas precargadas', () => {",
-                  "  const ids = pm.response.json().map(p => p.id);",
+                  "  const ids = pm.response.json().datos.map(p => p.polizaId);",
                   "  [1001, 1002, 1003, 1004, 1005].forEach(id => pm.expect(ids).to.include(id));",
                   "});"
                 ]
@@ -116,8 +122,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Solo colectivas vigentes', () => pm.response.json().forEach(p => {",
+                  "pm.test('Responde 200 con resultado 0 y proceso CONSULTA_POLIZAS', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('CONSULTA_POLIZAS');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "pm.test('Solo colectivas vigentes', () => pm.response.json().datos.forEach(p => {",
                   "  pm.expect(p.tipo).to.eql('COLECTIVA');",
                   "  pm.expect(p.estado).to.eql('VIGENTE');",
                   "}));"
@@ -149,9 +161,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responde 200 con resultado 0 y proceso CONSULTA_RIESGOS', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('CONSULTA_RIESGOS');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
                   "pm.test('El riesgo 3 quedó cancelado en el endoso 2', () => {",
-                  "  const r = pm.response.json().find(x => x.id === 3);",
+                  "  const r = pm.response.json().datos.find(x => x.id === 3);",
                   "  pm.expect(r.estado).to.eql('CANCELADO');",
                   "  pm.expect(r.ultimoEndoso).to.eql(2);",
                   "});"
@@ -166,7 +184,7 @@
       "name": "2. Póliza individual",
       "item": [
         {
-          "name": "Crear póliza individual (endoso 0)",
+          "name": "Emitir póliza individual (EMISION)",
           "request": {
             "method": "POST",
             "header": [
@@ -186,7 +204,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipo\": \"INDIVIDUAL\",\n  \"tomador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1010101010\",\n    \"nombre\": \"Mariana López\",\n    \"correo\": \"mariana@correo.com\",\n    \"celular\": \"3001112233\"\n  },\n  \"inicioVigencia\": \"2026-10-01\",\n  \"mesesVigencia\": 12,\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"EMISION\",\n    \"canal\": \"FRONT\",\n    \"usuario\": \"mlopez\"\n  },\n  \"poliza\": {\n    \"tipo\": \"INDIVIDUAL\",\n    \"tomador\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"1010101010\",\n      \"nombre\": \"Mariana López\",\n      \"correo\": \"mariana@correo.com\",\n      \"celular\": \"3001112233\"\n    },\n    \"inicioVigencia\": \"2026-10-01\",\n    \"mesesVigencia\": 12\n  },\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -200,14 +218,20 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 201', () => pm.response.to.have.status(201));",
-                  "const p = pm.response.json();",
-                  "pm.collectionVariables.set('polizaIndividualId', p.id);",
+                  "pm.test('Responde 201 con resultado 0 y proceso EMISION', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('EMISION');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
+                  "pm.collectionVariables.set('polizaIndividualId', d.polizaId);",
                   "pm.test('Endoso 0 de emisión que cobra la prima completa', () => {",
-                  "  pm.expect(p.endoso.numero).to.eql(0);",
-                  "  pm.expect(p.endoso.tipo).to.eql('EMISION');",
-                  "  pm.expect(p.endoso.claseMovimiento).to.eql('COBRO');",
-                  "  pm.expect(p.prima).to.eql(24000000);",
+                  "  pm.expect(d.numeroEndoso).to.eql(0);",
+                  "  pm.expect(d.tipoEndoso).to.eql('EMISION');",
+                  "  pm.expect(d.claseMovimiento).to.eql('COBRO');",
+                  "  pm.expect(d.valorMovimiento).to.eql(24000000);",
                   "});"
                 ]
               }
@@ -215,10 +239,15 @@
           ]
         },
         {
-          "name": "Renovar póliza individual (+IPC)",
+          "name": "Renovar póliza individual (RENOVACION)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/polizas/{{polizaIndividualId}}/renovar",
               "host": [
@@ -229,21 +258,71 @@
                 "{{polizaIndividualId}}",
                 "renovar"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"RENOVACION\",\n    \"canal\": \"FRONT\",\n    \"usuario\": \"mlopez\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prepara lo que necesita esta petición, para que se pueda enviar sola y en cualquier orden.",
+                  "const pedir = (metodo, ruta, cuerpo, siguiente) => pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + ruta,",
+                  "  method: metodo,",
+                  "  header: [{ key: 'api-key', value: pm.variables.get('apiKey') }, { key: 'Content-Type', value: 'application/json' }],",
+                  "  ...(cuerpo ? { body: { mode: 'raw', raw: JSON.stringify(cuerpo) } } : {})",
+                  "}, (err, res) => {",
+                  "  if (err) { throw err; }",
+                  "  siguiente(res.json());",
+                  "});",
+                  "const dosDigitos = n => String(n).padStart(2, '0');",
+                  "const ahora = new Date();",
+                  "const hoy = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-' + dosDigitos(ahora.getDate());",
+                  "const inicioMes = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-01';",
+                  "const id = Number(pm.collectionVariables.get('polizaIndividualId'));",
+                  "pedir('GET', '/polizas?tipo=INDIVIDUAL&estado=VIGENTE', null, r => {",
+                  "  const actual = r.datos.find(p => p.polizaId === id);",
+                  "  if (actual) {",
+                  "    pm.variables.set('canonAntes', actual.canonMensual);",
+                  "    return;",
+                  "  }",
+                  "  pedir('POST', '/polizas', {\"proceso\": {\"tipoProceso\": \"EMISION\", \"canal\": \"FRONT\", \"usuario\": \"mlopez\"}, \"poliza\": {\"tipo\": \"INDIVIDUAL\", \"tomador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1010101010\", \"nombre\": \"Mariana López\", \"correo\": \"mariana@correo.com\", \"celular\": \"3001112233\"}, \"inicioVigencia\": \"2026-10-01\", \"mesesVigencia\": 12}, \"riesgos\": [{\"inmueble\": {\"direccion\": \"Carrera 11 # 82-30 Apto 701\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1010101010\", \"nombre\": \"Mariana López\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79888777\", \"nombre\": \"Jaime Rojas\"}, \"canon\": 2000000}]}, e => {",
+                  "    pm.collectionVariables.set('polizaIndividualId', e.datos.polizaId);",
+                  "    pm.variables.set('canonAntes', e.datos.canonMensualPoliza);",
+                  "  });",
+                  "});"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "const p = pm.response.json();",
+                  "pm.test('Responde 200 con resultado 0 y proceso RENOVACION', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('RENOVACION');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
+                  "const canonNuevo = Math.round(Number(pm.variables.get('canonAntes')) * 1.048 * 100) / 100;",
                   "pm.test('Queda RENOVADA con el canon ajustado por el IPC 2026 (4,80 %)', () => {",
-                  "  pm.expect(p.estado).to.eql('RENOVADA');",
-                  "  pm.expect(p.canon).to.eql(2096000);",
-                  "  pm.expect(p.prima).to.eql(25152000);",
-                  "  pm.expect(p.endoso.tipo).to.eql('RENOVACION');",
+                  "  pm.expect(d.estadoPoliza).to.eql('RENOVADA');",
+                  "  pm.expect(d.canonMensualPoliza).to.eql(canonNuevo);",
+                  "  pm.expect(d.valorMovimiento).to.eql(canonNuevo * 12);",
+                  "  pm.expect(d.tipoEndoso).to.eql('RENOVACION');",
                   "});"
                 ]
               }
@@ -256,7 +335,7 @@
       "name": "3. Póliza colectiva",
       "item": [
         {
-          "name": "Crear póliza colectiva (endoso 0)",
+          "name": "Emitir póliza colectiva (EMISION)",
           "request": {
             "method": "POST",
             "header": [
@@ -276,7 +355,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipo\": \"COLECTIVA\",\n  \"tomador\": {\n    \"tipoDocumento\": \"NIT\",\n    \"numeroDocumento\": \"900777888\",\n    \"nombre\": \"Inmobiliaria Postman S.A.S.\",\n    \"correo\": \"contacto@inmobiliariapostman.com\"\n  },\n  \"inicioVigencia\": \"{{inicioVigencia}}\",\n  \"mesesVigencia\": 12,\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Calle 80 # 20-15 Apto 101\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1033445566\",\n        \"nombre\": \"Laura Méndez\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79222333\",\n        \"nombre\": \"Óscar Díaz\"\n      },\n      \"canon\": 1000000\n    },\n    {\n      \"inmueble\": {\n        \"direccion\": \"Calle 80 # 20-15 Apto 202\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1044556677\",\n        \"nombre\": \"Felipe Gómez\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79222333\",\n        \"nombre\": \"Óscar Díaz\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"EMISION\",\n    \"canal\": \"INMOBILIARIA\",\n    \"usuario\": \"inmobiliaria.postman\"\n  },\n  \"poliza\": {\n    \"tipo\": \"COLECTIVA\",\n    \"tomador\": {\n      \"tipoDocumento\": \"NIT\",\n      \"numeroDocumento\": \"900777888\",\n      \"nombre\": \"Inmobiliaria Postman S.A.S.\",\n      \"correo\": \"contacto@inmobiliariapostman.com\"\n    },\n    \"inicioVigencia\": \"{{inicioVigencia}}\",\n    \"mesesVigencia\": 12\n  },\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Calle 80 # 20-15 Apto 101\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1033445566\",\n        \"nombre\": \"Laura Méndez\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79222333\",\n        \"nombre\": \"Óscar Díaz\"\n      },\n      \"canon\": 1000000\n    },\n    {\n      \"inmueble\": {\n        \"direccion\": \"Calle 80 # 20-15 Apto 202\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1044556677\",\n        \"nombre\": \"Felipe Gómez\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79222333\",\n        \"nombre\": \"Óscar Díaz\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -291,9 +370,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "// La colectiva empieza el primer día del mes actual: agregar riesgos siempre cae dentro de la vigencia.",
-                  "const hoy = new Date();",
-                  "const mes = String(hoy.getMonth() + 1).padStart(2, '0');",
-                  "pm.collectionVariables.set('inicioVigencia', hoy.getFullYear() + '-' + mes + '-01');"
+                  "const ahora = new Date();",
+                  "const mes = String(ahora.getMonth() + 1).padStart(2, '0');",
+                  "pm.collectionVariables.set('inicioVigencia', ahora.getFullYear() + '-' + mes + '-01');"
                 ]
               }
             },
@@ -302,17 +381,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 201', () => pm.response.to.have.status(201));",
-                  "const p = pm.response.json();",
-                  "pm.collectionVariables.set('polizaColectivaId', p.id);",
-                  "pm.test('Se emite con 2 riesgos', () => pm.expect(p.riesgos).to.have.lengthOf(2));"
+                  "pm.test('Responde 201 con resultado 0 y proceso EMISION', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('EMISION');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
+                  "pm.collectionVariables.set('polizaColectivaId', d.polizaId);",
+                  "pm.test('Se emite con 2 riesgos', () => pm.expect(d.riesgos).to.have.lengthOf(2));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Agregar riesgo a la colectiva",
+          "name": "Agregar riesgo a la colectiva (INCLUSION_RIESGO)",
           "request": {
             "method": "POST",
             "header": [
@@ -334,7 +419,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"inmueble\": {\n    \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n    \"ciudad\": \"Bogotá\"\n  },\n  \"arrendatario\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1022334455\",\n    \"nombre\": \"Valentina Ruiz\"\n  },\n  \"arrendador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"80777666\",\n    \"nombre\": \"Hernán Cruz\"\n  },\n  \"canon\": 1300000\n}",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"INCLUSION_RIESGO\",\n    \"canal\": \"INMOBILIARIA\",\n    \"usuario\": \"inmobiliaria.postman\"\n  },\n  \"riesgo\": {\n    \"inmueble\": {\n      \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n      \"ciudad\": \"Bogotá\"\n    },\n    \"arrendatario\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"1022334455\",\n      \"nombre\": \"Valentina Ruiz\"\n    },\n    \"arrendador\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"80777666\",\n      \"nombre\": \"Hernán Cruz\"\n    },\n    \"canon\": 1300000\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -344,17 +429,62 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prepara lo que necesita esta petición, para que se pueda enviar sola y en cualquier orden.",
+                  "const pedir = (metodo, ruta, cuerpo, siguiente) => pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + ruta,",
+                  "  method: metodo,",
+                  "  header: [{ key: 'api-key', value: pm.variables.get('apiKey') }, { key: 'Content-Type', value: 'application/json' }],",
+                  "  ...(cuerpo ? { body: { mode: 'raw', raw: JSON.stringify(cuerpo) } } : {})",
+                  "}, (err, res) => {",
+                  "  if (err) { throw err; }",
+                  "  siguiente(res.json());",
+                  "});",
+                  "const dosDigitos = n => String(n).padStart(2, '0');",
+                  "const ahora = new Date();",
+                  "const hoy = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-' + dosDigitos(ahora.getDate());",
+                  "const inicioMes = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-01';",
+                  "const conColectiva = siguiente => {",
+                  "  const id = Number(pm.collectionVariables.get('polizaColectivaId'));",
+                  "  pedir('GET', '/polizas?tipo=COLECTIVA&estado=VIGENTE', null, r => {",
+                  "    if (r.datos.some(p => p.polizaId === id && p.inicioVigencia <= hoy && p.finVigencia >= hoy)) {",
+                  "      siguiente(id);",
+                  "      return;",
+                  "    }",
+                  "    const emision = {\"proceso\": {\"tipoProceso\": \"EMISION\", \"canal\": \"INMOBILIARIA\", \"usuario\": \"inmobiliaria.postman\"}, \"poliza\": {\"tipo\": \"COLECTIVA\", \"tomador\": {\"tipoDocumento\": \"NIT\", \"numeroDocumento\": \"900777888\", \"nombre\": \"Inmobiliaria Postman S.A.S.\", \"correo\": \"contacto@inmobiliariapostman.com\"}, \"inicioVigencia\": \"{{inicioVigencia}}\", \"mesesVigencia\": 12}, \"riesgos\": [{\"inmueble\": {\"direccion\": \"Calle 80 # 20-15 Apto 101\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1033445566\", \"nombre\": \"Laura Méndez\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79222333\", \"nombre\": \"Óscar Díaz\"}, \"canon\": 1000000}, {\"inmueble\": {\"direccion\": \"Calle 80 # 20-15 Apto 202\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1044556677\", \"nombre\": \"Felipe Gómez\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79222333\", \"nombre\": \"Óscar Díaz\"}, \"canon\": 2000000}]};",
+                  "    emision.poliza.inicioVigencia = inicioMes;",
+                  "    pedir('POST', '/polizas', emision, e => {",
+                  "      pm.collectionVariables.set('polizaColectivaId', e.datos.polizaId);",
+                  "      siguiente(e.datos.polizaId);",
+                  "    });",
+                  "  });",
+                  "};",
+                  "conColectiva(() => {});"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 201', () => pm.response.to.have.status(201));",
-                  "const r = pm.response.json();",
-                  "pm.collectionVariables.set('riesgoAgregadoId', r.riesgo.id);",
-                  "pm.test('Endoso de inclusión que cobra', () => {",
-                  "  pm.expect(r.poliza.endoso.tipo).to.eql('INCLUSION');",
-                  "  pm.expect(r.poliza.endoso.claseMovimiento).to.eql('COBRO');",
-                  "  pm.expect(r.riesgo.estado).to.eql('ACTIVO');",
+                  "pm.test('Responde 201 con resultado 0 y proceso INCLUSION_RIESGO', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('INCLUSION_RIESGO');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
+                  "pm.collectionVariables.set('riesgoAgregadoId', d.riesgos[0].id);",
+                  "pm.test('Endoso de inclusión que cobra el canon por los meses que faltan', () => {",
+                  "  pm.expect(d.tipoEndoso).to.eql('INCLUSION');",
+                  "  pm.expect(d.claseMovimiento).to.eql('COBRO');",
+                  "  pm.expect(d.valorMovimiento).to.eql(1300000 * d.riesgos[0].meses);",
+                  "  pm.expect(d.riesgos[0].estado).to.eql('ACTIVO');",
                   "});"
                 ]
               }
@@ -384,18 +514,33 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Tiene 3 riesgos', () => pm.expect(pm.response.json()).to.have.lengthOf(3));"
+                  "pm.test('Responde 200 con resultado 0 y proceso CONSULTA_RIESGOS', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('CONSULTA_RIESGOS');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "pm.test('Trae los riesgos de la póliza', () => {",
+                  "  const datos = pm.response.json().datos;",
+                  "  pm.expect(datos).to.be.an('array').that.is.not.empty;",
+                  "  datos.forEach(r => pm.expect(['ACTIVO', 'CANCELADO']).to.include(r.estado));",
+                  "});"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Cancelar el riesgo agregado",
+          "name": "Cancelar el riesgo agregado (EXCLUSION_RIESGO)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/riesgos/{{riesgoAgregadoId}}/cancelar",
               "host": [
@@ -406,21 +551,85 @@
                 "{{riesgoAgregadoId}}",
                 "cancelar"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"EXCLUSION_RIESGO\",\n    \"canal\": \"INMOBILIARIA\",\n    \"usuario\": \"inmobiliaria.postman\"\n  },\n  \"motivo\": \"El arrendatario entregó el inmueble\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prepara lo que necesita esta petición, para que se pueda enviar sola y en cualquier orden.",
+                  "const pedir = (metodo, ruta, cuerpo, siguiente) => pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + ruta,",
+                  "  method: metodo,",
+                  "  header: [{ key: 'api-key', value: pm.variables.get('apiKey') }, { key: 'Content-Type', value: 'application/json' }],",
+                  "  ...(cuerpo ? { body: { mode: 'raw', raw: JSON.stringify(cuerpo) } } : {})",
+                  "}, (err, res) => {",
+                  "  if (err) { throw err; }",
+                  "  siguiente(res.json());",
+                  "});",
+                  "const dosDigitos = n => String(n).padStart(2, '0');",
+                  "const ahora = new Date();",
+                  "const hoy = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-' + dosDigitos(ahora.getDate());",
+                  "const inicioMes = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-01';",
+                  "const conColectiva = siguiente => {",
+                  "  const id = Number(pm.collectionVariables.get('polizaColectivaId'));",
+                  "  pedir('GET', '/polizas?tipo=COLECTIVA&estado=VIGENTE', null, r => {",
+                  "    if (r.datos.some(p => p.polizaId === id && p.inicioVigencia <= hoy && p.finVigencia >= hoy)) {",
+                  "      siguiente(id);",
+                  "      return;",
+                  "    }",
+                  "    const emision = {\"proceso\": {\"tipoProceso\": \"EMISION\", \"canal\": \"INMOBILIARIA\", \"usuario\": \"inmobiliaria.postman\"}, \"poliza\": {\"tipo\": \"COLECTIVA\", \"tomador\": {\"tipoDocumento\": \"NIT\", \"numeroDocumento\": \"900777888\", \"nombre\": \"Inmobiliaria Postman S.A.S.\", \"correo\": \"contacto@inmobiliariapostman.com\"}, \"inicioVigencia\": \"{{inicioVigencia}}\", \"mesesVigencia\": 12}, \"riesgos\": [{\"inmueble\": {\"direccion\": \"Calle 80 # 20-15 Apto 101\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1033445566\", \"nombre\": \"Laura Méndez\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79222333\", \"nombre\": \"Óscar Díaz\"}, \"canon\": 1000000}, {\"inmueble\": {\"direccion\": \"Calle 80 # 20-15 Apto 202\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1044556677\", \"nombre\": \"Felipe Gómez\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79222333\", \"nombre\": \"Óscar Díaz\"}, \"canon\": 2000000}]};",
+                  "    emision.poliza.inicioVigencia = inicioMes;",
+                  "    pedir('POST', '/polizas', emision, e => {",
+                  "      pm.collectionVariables.set('polizaColectivaId', e.datos.polizaId);",
+                  "      siguiente(e.datos.polizaId);",
+                  "    });",
+                  "  });",
+                  "};",
+                  "const conRiesgoActivo = polizaId => {",
+                  "  const id = Number(pm.collectionVariables.get('riesgoAgregadoId'));",
+                  "  pedir('GET', '/polizas/' + polizaId + '/riesgos', null, r => {",
+                  "    if (r.datos.some(x => x.id === id && x.estado === 'ACTIVO')) {",
+                  "      return;",
+                  "    }",
+                  "    pedir('POST', '/polizas/' + polizaId + '/riesgos', {\"proceso\": {\"tipoProceso\": \"INCLUSION_RIESGO\", \"canal\": \"INMOBILIARIA\", \"usuario\": \"inmobiliaria.postman\"}, \"riesgo\": {\"inmueble\": {\"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1022334455\", \"nombre\": \"Valentina Ruiz\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"80777666\", \"nombre\": \"Hernán Cruz\"}, \"canon\": 1300000}},",
+                  "      e => pm.collectionVariables.set('riesgoAgregadoId', e.datos.riesgos[0].id));",
+                  "  });",
+                  "};",
+                  "conColectiva(conRiesgoActivo);"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "const r = pm.response.json();",
+                  "pm.test('Responde 200 con resultado 0 y proceso EXCLUSION_RIESGO', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('EXCLUSION_RIESGO');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
                   "pm.test('Endoso de exclusión que devuelve; la póliza sigue vigente', () => {",
-                  "  pm.expect(r.poliza.endoso.tipo).to.eql('EXCLUSION');",
-                  "  pm.expect(r.poliza.endoso.claseMovimiento).to.eql('DEVOLUCION');",
-                  "  pm.expect(r.poliza.estado).to.eql('VIGENTE');",
-                  "  pm.expect(r.riesgo.estado).to.eql('CANCELADO');",
+                  "  pm.expect(d.tipoEndoso).to.eql('EXCLUSION');",
+                  "  pm.expect(d.claseMovimiento).to.eql('DEVOLUCION');",
+                  "  pm.expect(d.valorMovimiento).to.be.below(0);",
+                  "  pm.expect(d.estadoPoliza).to.eql('VIGENTE');",
+                  "  pm.expect(d.riesgos[0].estado).to.eql('CANCELADO');",
                   "});"
                 ]
               }
@@ -428,10 +637,15 @@
           ]
         },
         {
-          "name": "Cancelar la póliza colectiva",
+          "name": "Cancelar la póliza colectiva (CANCELACION)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/polizas/{{polizaColectivaId}}/cancelar",
               "host": [
@@ -442,20 +656,73 @@
                 "{{polizaColectivaId}}",
                 "cancelar"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"CANCELACION\",\n    \"canal\": \"INMOBILIARIA\",\n    \"usuario\": \"inmobiliaria.postman\"\n  },\n  \"motivo\": \"La inmobiliaria terminó el contrato con la aseguradora\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prepara lo que necesita esta petición, para que se pueda enviar sola y en cualquier orden.",
+                  "const pedir = (metodo, ruta, cuerpo, siguiente) => pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + ruta,",
+                  "  method: metodo,",
+                  "  header: [{ key: 'api-key', value: pm.variables.get('apiKey') }, { key: 'Content-Type', value: 'application/json' }],",
+                  "  ...(cuerpo ? { body: { mode: 'raw', raw: JSON.stringify(cuerpo) } } : {})",
+                  "}, (err, res) => {",
+                  "  if (err) { throw err; }",
+                  "  siguiente(res.json());",
+                  "});",
+                  "const dosDigitos = n => String(n).padStart(2, '0');",
+                  "const ahora = new Date();",
+                  "const hoy = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-' + dosDigitos(ahora.getDate());",
+                  "const inicioMes = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-01';",
+                  "const conColectiva = siguiente => {",
+                  "  const id = Number(pm.collectionVariables.get('polizaColectivaId'));",
+                  "  pedir('GET', '/polizas?tipo=COLECTIVA&estado=VIGENTE', null, r => {",
+                  "    if (r.datos.some(p => p.polizaId === id && p.inicioVigencia <= hoy && p.finVigencia >= hoy)) {",
+                  "      siguiente(id);",
+                  "      return;",
+                  "    }",
+                  "    const emision = {\"proceso\": {\"tipoProceso\": \"EMISION\", \"canal\": \"INMOBILIARIA\", \"usuario\": \"inmobiliaria.postman\"}, \"poliza\": {\"tipo\": \"COLECTIVA\", \"tomador\": {\"tipoDocumento\": \"NIT\", \"numeroDocumento\": \"900777888\", \"nombre\": \"Inmobiliaria Postman S.A.S.\", \"correo\": \"contacto@inmobiliariapostman.com\"}, \"inicioVigencia\": \"{{inicioVigencia}}\", \"mesesVigencia\": 12}, \"riesgos\": [{\"inmueble\": {\"direccion\": \"Calle 80 # 20-15 Apto 101\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1033445566\", \"nombre\": \"Laura Méndez\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79222333\", \"nombre\": \"Óscar Díaz\"}, \"canon\": 1000000}, {\"inmueble\": {\"direccion\": \"Calle 80 # 20-15 Apto 202\", \"ciudad\": \"Bogotá\"}, \"arrendatario\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"1044556677\", \"nombre\": \"Felipe Gómez\"}, \"arrendador\": {\"tipoDocumento\": \"CC\", \"numeroDocumento\": \"79222333\", \"nombre\": \"Óscar Díaz\"}, \"canon\": 2000000}]};",
+                  "    emision.poliza.inicioVigencia = inicioMes;",
+                  "    pedir('POST', '/polizas', emision, e => {",
+                  "      pm.collectionVariables.set('polizaColectivaId', e.datos.polizaId);",
+                  "      siguiente(e.datos.polizaId);",
+                  "    });",
+                  "  });",
+                  "};",
+                  "conColectiva(() => {});"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "const p = pm.response.json();",
+                  "pm.test('Responde 200 con resultado 0 y proceso CANCELACION', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('CANCELACION');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
                   "pm.test('Póliza y riesgos cancelados', () => {",
-                  "  pm.expect(p.estado).to.eql('CANCELADA');",
-                  "  pm.expect(p.endoso.tipo).to.eql('CANCELACION');",
-                  "  p.riesgos.forEach(r => pm.expect(r.estado).to.eql('CANCELADO'));",
+                  "  pm.expect(d.estadoPoliza).to.eql('CANCELADA');",
+                  "  pm.expect(d.tipoEndoso).to.eql('CANCELACION');",
+                  "  d.riesgos.forEach(r => pm.expect(r.estado).to.eql('CANCELADO'));",
                   "});"
                 ]
               }
@@ -468,10 +735,15 @@
       "name": "4. Renovación automática",
       "item": [
         {
-          "name": "Renovación automática del día",
+          "name": "Renovación automática del día (RENOVACION_AUTOMATICA)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/renovaciones",
               "host": [
@@ -480,6 +752,15 @@
               "path": [
                 "renovaciones"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"RENOVACION_AUTOMATICA\",\n    \"canal\": \"PROGRAMADOR\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -488,11 +769,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "const r = pm.response.json();",
-                  "pm.test('Las renovadas quedan RENOVADA con un endoso de RENOVACION', () => r.renovadas.forEach(p => {",
-                  "  pm.expect(p.estado).to.eql('RENOVADA');",
-                  "  pm.expect(p.endoso.tipo).to.eql('RENOVACION');",
+                  "pm.test('Responde 200 con resultado 0 y proceso RENOVACION_AUTOMATICA', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('RENOVACION_AUTOMATICA');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "const d = pm.response.json().datos;",
+                  "pm.test('Las renovadas quedan RENOVADA con un endoso de RENOVACION', () => d.renovadas.forEach(p => {",
+                  "  pm.expect(p.estadoPoliza).to.eql('RENOVADA');",
+                  "  pm.expect(p.tipoEndoso).to.eql('RENOVACION');",
                   "}));"
                 ]
               }
@@ -503,7 +790,12 @@
           "name": "Repetir la renovación del día (no duplica)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/renovaciones",
               "host": [
@@ -512,16 +804,55 @@
               "path": [
                 "renovaciones"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"RENOVACION_AUTOMATICA\",\n    \"canal\": \"PROGRAMADOR\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prepara lo que necesita esta petición, para que se pueda enviar sola y en cualquier orden.",
+                  "const pedir = (metodo, ruta, cuerpo, siguiente) => pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + ruta,",
+                  "  method: metodo,",
+                  "  header: [{ key: 'api-key', value: pm.variables.get('apiKey') }, { key: 'Content-Type', value: 'application/json' }],",
+                  "  ...(cuerpo ? { body: { mode: 'raw', raw: JSON.stringify(cuerpo) } } : {})",
+                  "}, (err, res) => {",
+                  "  if (err) { throw err; }",
+                  "  siguiente(res.json());",
+                  "});",
+                  "const dosDigitos = n => String(n).padStart(2, '0');",
+                  "const ahora = new Date();",
+                  "const hoy = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-' + dosDigitos(ahora.getDate());",
+                  "const inicioMes = ahora.getFullYear() + '-' + dosDigitos(ahora.getMonth() + 1) + '-01';",
+                  "// Corre antes la renovación del día, para mostrar que repetirla no renueva nada otra vez.",
+                  "pedir('POST', '/renovaciones', {\"proceso\": {\"tipoProceso\": \"RENOVACION_AUTOMATICA\", \"canal\": \"PROGRAMADOR\"}}, () => {});"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
-                  "pm.test('No renueva otra vez las que ya renovó', () => pm.expect(pm.response.json().renovadas).to.have.lengthOf(0));"
+                  "pm.test('Responde 200 con resultado 0 y proceso RENOVACION_AUTOMATICA', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(0);",
+                  "  pm.expect(r.proceso.tipoProceso).to.eql('RENOVACION_AUTOMATICA');",
+                  "  pm.expect(r.idTransaccion).to.be.a('string');",
+                  "});",
+                  "pm.test('No renueva otra vez las que ya renovó', () => pm.expect(pm.response.json().datos.renovadas).to.have.lengthOf(0));"
                 ]
               }
             }
@@ -556,7 +887,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 401', () => pm.response.to.have.status(401));"
+                  "pm.test('Responde 401 con resultado -1 y error NO_AUTORIZADO', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('NO_AUTORIZADO');",
+                  "});"
                 ]
               }
             }
@@ -585,7 +921,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"inmueble\": {\n    \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n    \"ciudad\": \"Bogotá\"\n  },\n  \"arrendatario\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1022334455\",\n    \"nombre\": \"Valentina Ruiz\"\n  },\n  \"arrendador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"80777666\",\n    \"nombre\": \"Hernán Cruz\"\n  },\n  \"canon\": 1300000\n}",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"INCLUSION_RIESGO\",\n    \"canal\": \"FRONT\"\n  },\n  \"riesgo\": {\n    \"inmueble\": {\n      \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n      \"ciudad\": \"Bogotá\"\n    },\n    \"arrendatario\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"1022334455\",\n      \"nombre\": \"Valentina Ruiz\"\n    },\n    \"arrendador\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"80777666\",\n      \"nombre\": \"Hernán Cruz\"\n    },\n    \"canon\": 1300000\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -599,8 +935,60 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 422', () => pm.response.to.have.status(422));",
-                  "pm.test('Código REGLA_DE_NEGOCIO', () => pm.expect(pm.response.json().codigo).to.eql('REGLA_DE_NEGOCIO'));"
+                  "pm.test('Responde 422 con resultado -1 y error REGLA_DE_NEGOCIO', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('REGLA_DE_NEGOCIO');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "tipoProceso que no corresponde a la ruta (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/1003/riesgos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "1003",
+                "riesgos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"CANCELACION\",\n    \"canal\": \"INMOBILIARIA\"\n  },\n  \"riesgo\": {\n    \"inmueble\": {\n      \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n      \"ciudad\": \"Bogotá\"\n    },\n    \"arrendatario\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"1022334455\",\n      \"nombre\": \"Valentina Ruiz\"\n    },\n    \"arrendador\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"80777666\",\n      \"nombre\": \"Hernán Cruz\"\n    },\n    \"canon\": 1300000\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 422 con resultado -1 y error PROCESO_INVALIDO', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('PROCESO_INVALIDO');",
+                  "});"
                 ]
               }
             }
@@ -610,7 +998,12 @@
           "name": "Renovar una póliza cancelada (409)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/polizas/1004/renovar",
               "host": [
@@ -621,6 +1014,15 @@
                 "1004",
                 "renovar"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"RENOVACION\",\n    \"canal\": \"FRONT\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -629,8 +1031,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 409', () => pm.response.to.have.status(409));",
-                  "pm.test('Código ESTADO_INVALIDO', () => pm.expect(pm.response.json().codigo).to.eql('ESTADO_INVALIDO'));"
+                  "pm.test('Responde 409 con resultado -1 y error ESTADO_INVALIDO', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('ESTADO_INVALIDO');",
+                  "});"
                 ]
               }
             }
@@ -657,7 +1063,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipo\": \"INDIVIDUAL\",\n  \"tomador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1010101010\",\n    \"nombre\": \"Mariana López\",\n    \"correo\": \"mariana@correo.com\",\n    \"celular\": \"3001112233\"\n  },\n  \"inicioVigencia\": \"2026-10-01\",\n  \"mesesVigencia\": 12,\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    },\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"EMISION\",\n    \"canal\": \"FRONT\",\n    \"usuario\": \"mlopez\"\n  },\n  \"poliza\": {\n    \"tipo\": \"INDIVIDUAL\",\n    \"tomador\": {\n      \"tipoDocumento\": \"CC\",\n      \"numeroDocumento\": \"1010101010\",\n      \"nombre\": \"Mariana López\",\n      \"correo\": \"mariana@correo.com\",\n      \"celular\": \"3001112233\"\n    },\n    \"inicioVigencia\": \"2026-10-01\",\n    \"mesesVigencia\": 12\n  },\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    },\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -671,27 +1077,46 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 422', () => pm.response.to.have.status(422));"
+                  "pm.test('Responde 422 con resultado -1 y error REGLA_DE_NEGOCIO', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('REGLA_DE_NEGOCIO');",
+                  "});"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Cancelar de nuevo la colectiva cancelada (409)",
+          "name": "Cancelar una póliza ya cancelada (409)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/polizas/{{polizaColectivaId}}/cancelar",
+              "raw": "{{baseUrl}}/polizas/1004/cancelar",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "polizas",
-                "{{polizaColectivaId}}",
+                "1004",
                 "cancelar"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceso\": {\n    \"tipoProceso\": \"CANCELACION\",\n    \"canal\": \"FRONT\"\n  },\n  \"motivo\": \"Segundo intento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -700,7 +1125,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 409', () => pm.response.to.have.status(409));"
+                  "pm.test('Responde 409 con resultado -1 y error ESTADO_INVALIDO', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('ESTADO_INVALIDO');",
+                  "});"
                 ]
               }
             }
@@ -729,7 +1159,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 404', () => pm.response.to.have.status(404));"
+                  "pm.test('Responde 404 con resultado -1 y error NO_ENCONTRADO', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('NO_ENCONTRADO');",
+                  "});"
                 ]
               }
             }
@@ -762,14 +1197,19 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 400', () => pm.response.to.have.status(400));"
+                  "pm.test('Responde 400 con resultado -1 y error DATOS_INVALIDOS', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('DATOS_INVALIDOS');",
+                  "});"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Datos inválidos al crear (400)",
+          "name": "Datos inválidos al emitir (400)",
           "request": {
             "method": "POST",
             "header": [
@@ -803,7 +1243,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Responde 400', () => pm.response.to.have.status(400));"
+                  "pm.test('Responde 400 con resultado -1 y error DATOS_INVALIDOS', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.resultado).to.eql(-1);",
+                  "  pm.expect(r.errores[0].codigo).to.eql('DATOS_INVALIDOS');",
+                  "});"
                 ]
               }
             }

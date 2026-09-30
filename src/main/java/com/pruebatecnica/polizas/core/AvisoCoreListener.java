@@ -7,20 +7,20 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.pruebatecnica.polizas.service.EndosoRegistrado;
 
 /**
- * Avisa al CORE solo después de que el endoso quedó guardado: si el guardado falla, el CORE nunca recibe el aviso
- * de algo que no existe.
+ * Después de que el endoso y sus avisos quedaron guardados, le pide al procesador que los entregue de una vez. Si el
+ * guardado falla, no hay avisos: el CORE nunca recibe el aviso de algo que no existe.
  */
 @Component
 public class AvisoCoreListener {
 
-	private final CoreNotifier core;
+	private final ProcesadorAvisos procesador;
 
-	public AvisoCoreListener(CoreNotifier core) {
-		this.core = core;
+	public AvisoCoreListener(ProcesadorAvisos procesador) {
+		this.procesador = procesador;
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void alRegistrarEndoso(EndosoRegistrado endoso) {
-		core.notificarActualizacion(endoso.polizaId(), endoso.numEndoso(), endoso.tipoEndoso());
+		procesador.procesarPoliza(endoso.polizaId());
 	}
 }

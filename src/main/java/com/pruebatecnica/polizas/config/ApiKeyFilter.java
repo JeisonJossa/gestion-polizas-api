@@ -4,11 +4,15 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
+
+import com.pruebatecnica.polizas.exception.NoAutorizadoException;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,21 +21,23 @@ import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Exige el encabezado api-key (el que pide el enunciado) en todas las rutas del API. También acepta x-api-key, la
- * forma habitual de nombrar este encabezado. La consola de H2 queda por fuera.
+ * forma habitual de nombrar este encabezado. La consola de H2 queda por fuera. El 401 lo arma el manejador de errores,
+ * con la misma forma de las demás respuestas.
  */
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class ApiKeyFilter extends OncePerRequestFilter {
 
 	public static final String HEADER = "api-key";
 	public static final String HEADER_ALTERNO = "x-api-key";
 
-	private static final String RESPUESTA_401 =
-			"{\"codigo\":\"NO_AUTORIZADO\",\"mensaje\":\"Falta el encabezado api-key o no es válido.\"}";
-
 	private final byte[] apiKey;
+	private final HandlerExceptionResolver errores;
 
-	public ApiKeyFilter(@Value("${polizas.api-key}") String apiKey) {
+	public ApiKeyFilter(@Value("${polizas.api-key}") String apiKey,
+			@Qualifier("handlerExceptionResolver") HandlerExceptionResolver errores) {
 		this.apiKey = apiKey.getBytes(StandardCharsets.UTF_8);
+		this.errores = errores;
 	}
 
 	@Override
@@ -48,9 +54,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
 			chain.doFilter(request, response);
 			return;
 		}
-		response.setStatus(HttpStatus.UNAUTHORIZED.value());
-		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-		response.getWriter().write(RESPUESTA_401);
+		errores.resolveException(request, response, null,
+				new NoAutorizadoException("Falta el encabezado api-key o no es válido."));
 	}
 }

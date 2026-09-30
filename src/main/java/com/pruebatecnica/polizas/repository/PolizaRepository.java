@@ -17,7 +17,7 @@ public interface PolizaRepository extends JpaRepository<Poliza, PolizaId> {
 
 	/** Último endoso (la póliza vigente) de cada póliza, filtrado por tipo y estado cuando vienen. */
 	@Query("""
-			select p from Poliza p
+			select p from Poliza p join fetch p.tomador
 			where p.numEndoso = (select max(x.numEndoso) from Poliza x where x.polizaId = p.polizaId)
 			  and (:tipo is null or p.tipo = :tipo)
 			  and (:estado is null or p.estado = :estado)

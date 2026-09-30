@@ -5,14 +5,13 @@ import java.time.LocalDate;
 
 import org.springframework.data.domain.Persistable;
 
-import jakarta.persistence.AttributeOverride;
-import jakarta.persistence.Column;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
@@ -35,6 +34,9 @@ public class Poliza implements Persistable<PolizaId> {
 
 	private String numeroPoliza;
 
+	/** Número de la póliza en el CORE. Lo asigna el CORE al registrarla; el mock del Módulo 2 no lo devuelve. */
+	private String numeroCore;
+
 	@Enumerated(EnumType.STRING)
 	private TipoPoliza tipo;
 
@@ -56,12 +58,8 @@ public class Poliza implements Persistable<PolizaId> {
 	/** Desde cuándo aplica el cambio que registra este endoso. */
 	private LocalDate fechaEndoso;
 
-	@Embedded
-	@AttributeOverride(name = "tipoDocumento", column = @Column(name = "tomador_tipo_documento"))
-	@AttributeOverride(name = "numeroDocumento", column = @Column(name = "tomador_numero_documento"))
-	@AttributeOverride(name = "nombre", column = @Column(name = "tomador_nombre"))
-	@AttributeOverride(name = "correo", column = @Column(name = "tomador_correo"))
-	@AttributeOverride(name = "celular", column = @Column(name = "tomador_celular"))
+	@ManyToOne(optional = false)
+	@JoinColumn(name = "tomador_id")
 	private Persona tomador;
 
 	/** Suma de los cánones de los riesgos activos. */
@@ -72,6 +70,13 @@ public class Poliza implements Persistable<PolizaId> {
 
 	/** Lo que movió este endoso: positivo cobra, negativo devuelve. */
 	private BigDecimal primaEndoso;
+
+	/** Quién originó el endoso: canal, usuario y motivo que llegaron en la petición. */
+	private String canal;
+
+	private String usuario;
+
+	private String motivo;
 
 	@Transient
 	private boolean nueva;
@@ -111,8 +116,20 @@ public class Poliza implements Persistable<PolizaId> {
 	/** Copia esta fila como el endoso siguiente, con lo que cambia. */
 	Poliza siguienteEndoso(TipoEndoso tipoEndoso, LocalDate fecha, EstadoPoliza estado, LocalDate inicio,
 			LocalDate fin, BigDecimal canon, BigDecimal prima, BigDecimal primaEndoso) {
-		return new Poliza(polizaId, numEndoso + 1, numeroPoliza, tipo, estado, tipoEndoso, inicio, fin, mesesVigencia,
-				fecha, tomador, canon, prima, primaEndoso);
+		Poliza siguiente = new Poliza(polizaId, numEndoso + 1, numeroPoliza, tipo, estado, tipoEndoso, inicio, fin,
+				mesesVigencia, fecha, tomador, canon, prima, primaEndoso);
+		siguiente.numeroCore = numeroCore;
+		return siguiente;
+	}
+
+	/** Registra de dónde vino el endoso. Solo aplica a la fila nueva, antes de guardarla. */
+	public void registrarOrigen(String canal, String usuario, String motivo) {
+		if (!nueva) {
+			throw new IllegalStateException("El origen solo se registra en un endoso nuevo.");
+		}
+		this.canal = canal;
+		this.usuario = usuario;
+		this.motivo = motivo;
 	}
 
 	@PostLoad

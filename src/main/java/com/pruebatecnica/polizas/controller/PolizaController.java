@@ -14,8 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.pruebatecnica.polizas.domain.EstadoPoliza;
 import com.pruebatecnica.polizas.domain.TipoPoliza;
-import com.pruebatecnica.polizas.dto.CrearPolizaRequest;
-import com.pruebatecnica.polizas.dto.PolizaResponse;
+import com.pruebatecnica.polizas.dto.CancelacionRequest;
+import com.pruebatecnica.polizas.dto.EmisionRequest;
+import com.pruebatecnica.polizas.dto.EndosoResultado;
+import com.pruebatecnica.polizas.dto.PolizaConsulta;
+import com.pruebatecnica.polizas.dto.RenovacionRequest;
+import com.pruebatecnica.polizas.dto.RespuestaApi;
+import com.pruebatecnica.polizas.dto.TipoProceso;
 import com.pruebatecnica.polizas.service.PolizaService;
 
 import jakarta.validation.Valid;
@@ -25,34 +30,45 @@ import jakarta.validation.Valid;
 public class PolizaController {
 
 	private final PolizaService servicio;
+	private final Respuestas respuestas;
 
-	public PolizaController(PolizaService servicio) {
+	public PolizaController(PolizaService servicio, Respuestas respuestas) {
 		this.servicio = servicio;
+		this.respuestas = respuestas;
 	}
 
-	/** Lista las pólizas según su último endoso; tipo y estado son opcionales. */
+	/** CONSULTA_POLIZAS: las pólizas según su último endoso; tipo y estado son opcionales. */
 	@GetMapping
-	public List<PolizaResponse> listar(@RequestParam(required = false) TipoPoliza tipo,
+	public RespuestaApi<List<PolizaConsulta>> listar(@RequestParam(required = false) TipoPoliza tipo,
 			@RequestParam(required = false) EstadoPoliza estado) {
-		return servicio.listar(tipo, estado);
+		List<PolizaConsulta> polizas = servicio.listar(tipo, estado);
+		return respuestas.exito(TipoProceso.CONSULTA_POLIZAS, polizas.size() + " pólizas encontradas.", polizas);
 	}
 
-	/** Emite una póliza individual o colectiva (endoso 0). */
+	/** EMISION: emite una póliza individual o colectiva (endoso 0). */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public PolizaResponse crear(@Valid @RequestBody CrearPolizaRequest solicitud) {
-		return servicio.crear(solicitud);
+	public RespuestaApi<EndosoResultado> emitir(@Valid @RequestBody EmisionRequest solicitud) {
+		solicitud.proceso().exigirTipo(TipoProceso.EMISION);
+		EndosoResultado emision = servicio.emitir(solicitud);
+		return respuestas.exito(TipoProceso.EMISION, "Póliza " + emision.polizaId() + " emitida.", emision);
 	}
 
-	/** Renueva por el mismo periodo con el IPC del año anterior; la póliza pasa a RENOVADA. */
+	/** RENOVACION: renueva por el mismo periodo con el IPC del año anterior; la póliza pasa a RENOVADA. */
 	@PostMapping("/{id}/renovar")
-	public PolizaResponse renovar(@PathVariable long id) {
-		return servicio.renovar(id);
+	public RespuestaApi<EndosoResultado> renovar(@PathVariable long id, @Valid @RequestBody RenovacionRequest solicitud) {
+		solicitud.proceso().exigirTipo(TipoProceso.RENOVACION);
+		EndosoResultado renovacion = servicio.renovar(id, solicitud.proceso(), null);
+		return respuestas.exito(TipoProceso.RENOVACION,
+				"Póliza " + id + " renovada hasta el " + renovacion.finVigencia() + ".", renovacion);
 	}
 
-	/** Cancela la póliza y todos sus riesgos. */
+	/** CANCELACION: cancela la póliza y todos sus riesgos. */
 	@PostMapping("/{id}/cancelar")
-	public PolizaResponse cancelar(@PathVariable long id) {
-		return servicio.cancelar(id);
+	public RespuestaApi<EndosoResultado> cancelar(@PathVariable long id,
+			@Valid @RequestBody CancelacionRequest solicitud) {
+		solicitud.proceso().exigirTipo(TipoProceso.CANCELACION);
+		EndosoResultado cancelacion = servicio.cancelar(id, solicitud);
+		return respuestas.exito(TipoProceso.CANCELACION, "Póliza " + id + " cancelada con sus riesgos.", cancelacion);
 	}
 }

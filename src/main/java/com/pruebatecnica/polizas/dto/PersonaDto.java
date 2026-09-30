@@ -20,7 +20,7 @@ public record PersonaDto(
 	}
 
 	public static PersonaDto de(Persona persona) {
-		return new PersonaDto(persona.tipoDocumento(), persona.numeroDocumento(), persona.nombre(), persona.correo(),
-				persona.celular());
+		return new PersonaDto(persona.getTipoDocumento(), persona.getNumeroDocumento(), persona.getNombre(),
+				persona.getCorreo(), persona.getCelular());
 	}
 }
