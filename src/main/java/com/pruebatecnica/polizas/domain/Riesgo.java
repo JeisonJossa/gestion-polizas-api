@@ -203,8 +203,4 @@ public class Riesgo implements Persistable<RiesgoId> {
 	public EstadoRiesgo getEstado() {
 		return estado;
 	}
-
-	public boolean isVigente() {
-		return Boolean.TRUE.equals(vigente);
-	}
 }

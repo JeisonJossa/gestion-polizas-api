@@ -33,19 +33,6 @@ cd gestion-polizas-api
 
 La API queda en `http://localhost:8080`. **Todas las peticiones llevan el encabezado `api-key: 123456`**, como pide el enunciado; sin él la respuesta es 401. También se acepta con el nombre `x-api-key`.
 
-Para correr las pruebas:
-
-```bash
-./mvnw test                       # Linux, macOS o Git Bash
-.\mvnw.cmd test                   # Windows
-```
-
-Son 45 pruebas:
-
-- Las reglas de negocio, sin Spring.
-- El API completo sobre H2, incluidas las personas, los avisos y sus reintentos.
-- Una prueba de extremo a extremo que levanta el servidor en el puerto 18080. Verifica que los avisos llegan al mock del CORE y quedan sincronizados.
-
 ## Contrato del API
 
 ### Entrada: el bloque `proceso`
@@ -377,8 +364,7 @@ La operación del usuario nunca espera al CORE ni se revierte si el CORE falla. 
     │   │                PublicadorEventos (puerto) y LogPublicadorEventos
     │   ├── config       TransaccionFilter, ApiKeyFilter, RelojConfig
     │   └── exception    Excepciones de negocio y GlobalExceptionHandler
-    ├── main/resources   application.yml, schema.sql (PERSONA, POLIZA, RIESGO, IPC y AVISO), data.sql
-    └── test             Pruebas del dominio, del API y de extremo a extremo
+    └── main/resources   application.yml, schema.sql (PERSONA, POLIZA, RIESGO, IPC y AVISO), data.sql
 ```
 
 Las reglas viven en `PolizaVigente`, que no depende de Spring. Cada operación devuelve el endoso nuevo sin tocar la base de datos. El servicio solo registra las personas, carga la póliza, guarda el endoso con sus avisos y responde. `Respuestas` arma todas las respuestas con la forma común.
@@ -397,4 +383,4 @@ Las reglas viven en `PolizaVigente`, que no depende de Spring. Cada operación d
 Otros detalles de implementación:
 
 - `riesgo_id` es el identificador público del riesgo para `/riesgos/{id}`. La llave del modelo sigue siendo (póliza, endoso, código de riesgo).
-- La fecha de los movimientos es la de hoy en Colombia (`America/Bogota`), salvo que llegue `fechaMovimiento`. Las pruebas usan un reloj fijo.
+- La fecha de los movimientos es la de hoy en Colombia (`America/Bogota`), salvo que llegue `fechaMovimiento`.
