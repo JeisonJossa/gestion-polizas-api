@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: gestion-polizas-api
+  datasource:
+    url: jdbc:h2:mem:polizas;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    open-in-view: false
+    hibernate:
+      # El esquema lo define schema.sql; Hibernate solo lo valida.
+      ddl-auto: validate
+  sql:
+    init:
+      mode: always
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: 8080
+
+polizas:
+  # Valor del encabezado api-key que exige el API.
+  api-key: "123456"
+  core:
+    # Servicio agnóstico de edición. Hoy es el mock de esta misma app; en producción, la capa media WebLogic.
+    url: http://localhost:${server.port}/core-mock/evento
+    timeout: 2s

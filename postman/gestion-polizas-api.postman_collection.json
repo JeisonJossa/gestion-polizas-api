@@ -1,0 +1,862 @@
+{
+  "info": {
+    "name": "Gestión de Pólizas de Arrendamiento - Módulo 2",
+    "description": "API del Módulo 2. Arranque la app (mvnw spring-boot:run) y ejecute la colección completa con el Runner, en orden: cada petición guarda los ids que usa la siguiente. El encabezado api-key sale de la autorización de la colección (variable apiKey).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "apiKey",
+      "value": "123456"
+    },
+    {
+      "key": "inicioVigencia",
+      "value": ""
+    },
+    {
+      "key": "polizaIndividualId",
+      "value": ""
+    },
+    {
+      "key": "polizaColectivaId",
+      "value": ""
+    },
+    {
+      "key": "riesgoAgregadoId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Consultas",
+      "item": [
+        {
+          "name": "Listar todas las pólizas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Trae las pólizas precargadas', () => {",
+                  "  const ids = pm.response.json().map(p => p.id);",
+                  "  [1001, 1002, 1003, 1004, 1005].forEach(id => pm.expect(ids).to.include(id));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar colectivas vigentes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas?tipo=COLECTIVA&estado=VIGENTE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ],
+              "query": [
+                {
+                  "key": "tipo",
+                  "value": "COLECTIVA"
+                },
+                {
+                  "key": "estado",
+                  "value": "VIGENTE"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Solo colectivas vigentes', () => pm.response.json().forEach(p => {",
+                  "  pm.expect(p.tipo).to.eql('COLECTIVA');",
+                  "  pm.expect(p.estado).to.eql('VIGENTE');",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Riesgos de la póliza 1002 (con historial de endosos)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/1002/riesgos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "1002",
+                "riesgos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El riesgo 3 quedó cancelado en el endoso 2', () => {",
+                  "  const r = pm.response.json().find(x => x.id === 3);",
+                  "  pm.expect(r.estado).to.eql('CANCELADO');",
+                  "  pm.expect(r.ultimoEndoso).to.eql(2);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Póliza individual",
+      "item": [
+        {
+          "name": "Crear póliza individual (endoso 0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"INDIVIDUAL\",\n  \"tomador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1010101010\",\n    \"nombre\": \"Mariana López\",\n    \"correo\": \"mariana@correo.com\",\n    \"celular\": \"3001112233\"\n  },\n  \"inicioVigencia\": \"2026-10-01\",\n  \"mesesVigencia\": 12,\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.collectionVariables.set('polizaIndividualId', p.id);",
+                  "pm.test('Endoso 0 de emisión que cobra la prima completa', () => {",
+                  "  pm.expect(p.endoso.numero).to.eql(0);",
+                  "  pm.expect(p.endoso.tipo).to.eql('EMISION');",
+                  "  pm.expect(p.endoso.claseMovimiento).to.eql('COBRO');",
+                  "  pm.expect(p.prima).to.eql(24000000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Renovar póliza individual (+IPC)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/{{polizaIndividualId}}/renovar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "{{polizaIndividualId}}",
+                "renovar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test('Queda RENOVADA con el canon ajustado por el IPC 2026 (4,80 %)', () => {",
+                  "  pm.expect(p.estado).to.eql('RENOVADA');",
+                  "  pm.expect(p.canon).to.eql(2096000);",
+                  "  pm.expect(p.prima).to.eql(25152000);",
+                  "  pm.expect(p.endoso.tipo).to.eql('RENOVACION');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Póliza colectiva",
+      "item": [
+        {
+          "name": "Crear póliza colectiva (endoso 0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"COLECTIVA\",\n  \"tomador\": {\n    \"tipoDocumento\": \"NIT\",\n    \"numeroDocumento\": \"900777888\",\n    \"nombre\": \"Inmobiliaria Postman S.A.S.\",\n    \"correo\": \"contacto@inmobiliariapostman.com\"\n  },\n  \"inicioVigencia\": \"{{inicioVigencia}}\",\n  \"mesesVigencia\": 12,\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Calle 80 # 20-15 Apto 101\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1033445566\",\n        \"nombre\": \"Laura Méndez\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79222333\",\n        \"nombre\": \"Óscar Díaz\"\n      },\n      \"canon\": 1000000\n    },\n    {\n      \"inmueble\": {\n        \"direccion\": \"Calle 80 # 20-15 Apto 202\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1044556677\",\n        \"nombre\": \"Felipe Gómez\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79222333\",\n        \"nombre\": \"Óscar Díaz\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// La colectiva empieza el primer día del mes actual: agregar riesgos siempre cae dentro de la vigencia.",
+                  "const hoy = new Date();",
+                  "const mes = String(hoy.getMonth() + 1).padStart(2, '0');",
+                  "pm.collectionVariables.set('inicioVigencia', hoy.getFullYear() + '-' + mes + '-01');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.collectionVariables.set('polizaColectivaId', p.id);",
+                  "pm.test('Se emite con 2 riesgos', () => pm.expect(p.riesgos).to.have.lengthOf(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agregar riesgo a la colectiva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/{{polizaColectivaId}}/riesgos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "{{polizaColectivaId}}",
+                "riesgos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inmueble\": {\n    \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n    \"ciudad\": \"Bogotá\"\n  },\n  \"arrendatario\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1022334455\",\n    \"nombre\": \"Valentina Ruiz\"\n  },\n  \"arrendador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"80777666\",\n    \"nombre\": \"Hernán Cruz\"\n  },\n  \"canon\": 1300000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set('riesgoAgregadoId', r.riesgo.id);",
+                  "pm.test('Endoso de inclusión que cobra', () => {",
+                  "  pm.expect(r.poliza.endoso.tipo).to.eql('INCLUSION');",
+                  "  pm.expect(r.poliza.endoso.claseMovimiento).to.eql('COBRO');",
+                  "  pm.expect(r.riesgo.estado).to.eql('ACTIVO');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar riesgos de la colectiva",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/{{polizaColectivaId}}/riesgos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "{{polizaColectivaId}}",
+                "riesgos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene 3 riesgos', () => pm.expect(pm.response.json()).to.have.lengthOf(3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar el riesgo agregado",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/riesgos/{{riesgoAgregadoId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "riesgos",
+                "{{riesgoAgregadoId}}",
+                "cancelar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Endoso de exclusión que devuelve; la póliza sigue vigente', () => {",
+                  "  pm.expect(r.poliza.endoso.tipo).to.eql('EXCLUSION');",
+                  "  pm.expect(r.poliza.endoso.claseMovimiento).to.eql('DEVOLUCION');",
+                  "  pm.expect(r.poliza.estado).to.eql('VIGENTE');",
+                  "  pm.expect(r.riesgo.estado).to.eql('CANCELADO');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar la póliza colectiva",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/{{polizaColectivaId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "{{polizaColectivaId}}",
+                "cancelar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test('Póliza y riesgos cancelados', () => {",
+                  "  pm.expect(p.estado).to.eql('CANCELADA');",
+                  "  pm.expect(p.endoso.tipo).to.eql('CANCELACION');",
+                  "  p.riesgos.forEach(r => pm.expect(r.estado).to.eql('CANCELADO'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Renovación automática",
+      "item": [
+        {
+          "name": "Renovación automática del día",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/renovaciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "renovaciones"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Las renovadas quedan RENOVADA con un endoso de RENOVACION', () => r.renovadas.forEach(p => {",
+                  "  pm.expect(p.estado).to.eql('RENOVADA');",
+                  "  pm.expect(p.endoso.tipo).to.eql('RENOVACION');",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repetir la renovación del día (no duplica)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/renovaciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "renovaciones"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No renueva otra vez las que ya renovó', () => pm.expect(pm.response.json().renovadas).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Reglas de negocio y errores",
+      "item": [
+        {
+          "name": "Sin api-key (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agregar riesgo a una individual (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/1001/riesgos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "1001",
+                "riesgos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inmueble\": {\n    \"direccion\": \"Calle 150 # 45-20 Torre 3 Apto 402\",\n    \"ciudad\": \"Bogotá\"\n  },\n  \"arrendatario\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1022334455\",\n    \"nombre\": \"Valentina Ruiz\"\n  },\n  \"arrendador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"80777666\",\n    \"nombre\": \"Hernán Cruz\"\n  },\n  \"canon\": 1300000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Código REGLA_DE_NEGOCIO', () => pm.expect(pm.response.json().codigo).to.eql('REGLA_DE_NEGOCIO'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Renovar una póliza cancelada (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/1004/renovar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "1004",
+                "renovar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Código ESTADO_INVALIDO', () => pm.expect(pm.response.json().codigo).to.eql('ESTADO_INVALIDO'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Individual con 2 riesgos (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"INDIVIDUAL\",\n  \"tomador\": {\n    \"tipoDocumento\": \"CC\",\n    \"numeroDocumento\": \"1010101010\",\n    \"nombre\": \"Mariana López\",\n    \"correo\": \"mariana@correo.com\",\n    \"celular\": \"3001112233\"\n  },\n  \"inicioVigencia\": \"2026-10-01\",\n  \"mesesVigencia\": 12,\n  \"riesgos\": [\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    },\n    {\n      \"inmueble\": {\n        \"direccion\": \"Carrera 11 # 82-30 Apto 701\",\n        \"ciudad\": \"Bogotá\"\n      },\n      \"arrendatario\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"1010101010\",\n        \"nombre\": \"Mariana López\"\n      },\n      \"arrendador\": {\n        \"tipoDocumento\": \"CC\",\n        \"numeroDocumento\": \"79888777\",\n        \"nombre\": \"Jaime Rojas\"\n      },\n      \"canon\": 2000000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar de nuevo la colectiva cancelada (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/{{polizaColectivaId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "{{polizaColectivaId}}",
+                "cancelar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Póliza que no existe (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas/9999/riesgos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas",
+                "9999",
+                "riesgos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tipo de póliza inválido (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/polizas?tipo=OTRO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ],
+              "query": [
+                {
+                  "key": "tipo",
+                  "value": "OTRO"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Datos inválidos al crear (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/polizas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "polizas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Mock del CORE",
+      "item": [
+        {
+          "name": "Registrar evento en el CORE (202)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/core-mock/evento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "core-mock",
+                "evento"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"evento\": \"ACTUALIZACION\",\n  \"polizaId\": 555\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 202', () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
